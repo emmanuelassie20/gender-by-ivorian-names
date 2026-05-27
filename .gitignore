@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.pkl
+*.onnx
+*.keras
+dataset_nettoye.csv
+figures/
+.ipynb_checkpoints/
