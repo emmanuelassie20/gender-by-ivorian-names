@@ -10,3 +10,8 @@ corrections_dataset.csv
 .qodo/
 .env
 .venv/
+runs/
+runs_smoke/
+mlflow.db
+mlruns/
+mlartifacts/

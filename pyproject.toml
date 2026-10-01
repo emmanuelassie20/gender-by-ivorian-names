@@ -28,6 +28,8 @@ train = [
     "matplotlib",
     "seaborn",
     "ipykernel",
+    "mlflow>=3.16.1",
+    "papermill>=2.7.0",
 ]
 
 [tool.uv]

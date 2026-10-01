@@ -2,7 +2,8 @@
 
 Modèle CNN + BiLSTM + Multi-Head Attention, exporté en ONNX, servi avec Gradio.
 
-- `train_model.ipynb` : entraînement et évaluation
+- `train_model.ipynb` : analyse exploratoire, modèles classiques, modèle v4 et export ONNX
+- `optimisation.ipynb` : modèle v5, ablations, recherche d'hyperparamètres (Optuna), suivi MLflow
 - `app_gradio.py` : interface de démonstration
 
 Le jeu de données et les poids du modèle ne sont pas publiés.
