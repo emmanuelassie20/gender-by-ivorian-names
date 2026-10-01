@@ -4,11 +4,15 @@ services:
     runtime: python
     plan: free
     branch: main
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app_gradio.py
+    # Installe uniquement les dépendances de l'app, aux versions de uv.lock
+    buildCommand: pip install uv && uv sync --frozen
+    startCommand: .venv/bin/python app_gradio.py
     envVars:
       - key: PYTHON_VERSION
         value: "3.12.8"
+      # uv utilise le Python de Render au lieu d'en télécharger un
+      - key: UV_PYTHON_DOWNLOADS
+        value: never
       - key: HF_MODEL_REPO
         value: LeMental/gender-by-ivorian-names-model
       - key: HF_TOKEN

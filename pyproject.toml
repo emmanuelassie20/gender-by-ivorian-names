@@ -1,0 +1,34 @@
+[project]
+name = "gender-by-ivorian-names"
+version = "0.1.0"
+description = "Reconnaissance du genre à partir de noms ivoiriens"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+# Dépendances de l'application (installées seules en production)
+dependencies = [
+    "gradio==5.50.0",
+    "onnxruntime>=1.20",
+    "numpy",
+    "pandas",
+    "huggingface_hub",
+]
+
+[dependency-groups]
+# Entraînement et expériences : uv sync --group train
+train = [
+    "tensorflow[and-cuda]==2.20.*; sys_platform == 'linux'",
+    "tensorflow==2.20.*; sys_platform != 'linux'",
+    # cuDNN 9.3 : les versions récentes plantent sur les GPU Pascal (Quadro P1000)
+    "nvidia-cudnn-cu12==9.3.0.75; sys_platform == 'linux'",
+    "scikit-learn",
+    "scipy",
+    "optuna",
+    "tf2onnx",
+    "onnx",
+    "matplotlib",
+    "seaborn",
+    "ipykernel",
+]
+
+[tool.uv]
+package = false

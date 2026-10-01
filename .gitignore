@@ -9,3 +9,4 @@ figures/
 corrections_dataset.csv
 .qodo/
 .env
+.venv/
