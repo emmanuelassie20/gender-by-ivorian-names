@@ -23,7 +23,20 @@ CHAR_INDEX_PATH  = "char_to_index.pkl"
 MAX_LEN_PATH     = "max_len.pkl"
 CORRECTIONS_FILE = "corrections_dataset.csv"
 
+# En ligne (Hugging Face Spaces), les fichiers du modèle ne sont pas dans le
+# dépôt : ils sont téléchargés depuis un dépôt modèle PRIVÉ (secrets
+# HF_MODEL_REPO et HF_TOKEN). En local, les fichiers présents sont utilisés.
+HF_MODEL_REPO = os.environ.get("HF_MODEL_REPO")
+
 print(">>> Chargement des ressources...")
+
+if HF_MODEL_REPO:
+    from huggingface_hub import hf_hub_download
+    for _fname in (ONNX_MODEL_PATH, CHAR_INDEX_PATH, MAX_LEN_PATH):
+        if not os.path.exists(_fname):
+            hf_hub_download(HF_MODEL_REPO, _fname, local_dir=".",
+                            token=os.environ.get("HF_TOKEN"))
+            print(f">>> Téléchargé depuis {HF_MODEL_REPO} : {_fname}")
 
 # Chargement vocabulaire et longueur max
 try:
@@ -81,9 +94,16 @@ def text_to_sequence(text: str) -> list:
 
 
 def _pad(seqs: list) -> np.ndarray:
-    """Pad une liste de séquences → array int32 (requis par ONNX)."""
-    from tensorflow.keras.preprocessing.sequence import pad_sequences as _ps
-    return _ps(seqs, maxlen=max_len, padding='post', value=0).astype(np.int32)
+    """
+    Pad une liste de séquences → array int32 (requis par ONNX).
+    Équivalent NumPy de pad_sequences(padding='post', truncating='pre'),
+    pour ne pas dépendre de TensorFlow en production.
+    """
+    X = np.zeros((len(seqs), max_len), dtype=np.int32)
+    for i, seq in enumerate(seqs):
+        seq = seq[-max_len:]
+        X[i, :len(seq)] = seq
+    return X
 
 
 def _predict_batch(X: np.ndarray) -> np.ndarray:
@@ -344,4 +364,8 @@ with gr.Blocks(theme=gr.themes.Soft(),
 
 if __name__ == "__main__":
     print(">>> Lancement de l'interface Gradio...")
-    demo.launch(share=False)
+    # Accès protégé par mot de passe si le secret APP_PASSWORD est défini
+    auth = None
+    if os.environ.get("APP_PASSWORD"):
+        auth = (os.environ.get("APP_USER", "jury"), os.environ["APP_PASSWORD"])
+    demo.launch(share=False, auth=auth)

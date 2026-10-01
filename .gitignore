@@ -6,3 +6,5 @@ __pycache__/
 dataset_nettoye.csv
 figures/
 .ipynb_checkpoints/
+corrections_dataset.csv
+.qodo/

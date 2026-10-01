@@ -1,0 +1,4 @@
+onnxruntime>=1.20
+numpy
+pandas
+huggingface_hub
