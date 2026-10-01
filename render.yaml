@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: gender-by-ivorian-names
+    runtime: python
+    plan: free
+    branch: deploy-hf-spaces
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app_gradio.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: HF_MODEL_REPO
+        value: LeMental/gender-by-ivorian-names-model
+      - key: HF_TOKEN
+        sync: false
+      - key: APP_PASSWORD
+        sync: false

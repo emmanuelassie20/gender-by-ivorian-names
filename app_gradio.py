@@ -368,4 +368,9 @@ if __name__ == "__main__":
     auth = None
     if os.environ.get("APP_PASSWORD"):
         auth = (os.environ.get("APP_USER", "jury"), os.environ["APP_PASSWORD"])
-    demo.launch(share=False, auth=auth)
+    # Hébergeur (Render) : écouter sur toutes les interfaces, au port fourni
+    launch_kwargs = {}
+    if os.environ.get("PORT"):
+        launch_kwargs = dict(server_name="0.0.0.0",
+                             server_port=int(os.environ["PORT"]))
+    demo.launch(share=False, auth=auth, **launch_kwargs)

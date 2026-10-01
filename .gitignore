@@ -8,3 +8,4 @@ figures/
 .ipynb_checkpoints/
 corrections_dataset.csv
 .qodo/
+.env
