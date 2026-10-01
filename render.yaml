@@ -3,7 +3,7 @@ services:
     name: gender-by-ivorian-names
     runtime: python
     plan: free
-    branch: deploy-hf-spaces
+    branch: main
     buildCommand: pip install -r requirements.txt
     startCommand: python app_gradio.py
     envVars:

@@ -1,15 +1,3 @@
----
-title: Reconnaissance Genre Noms Ivoiriens
-emoji: 🔍
-colorFrom: blue
-colorTo: green
-sdk: gradio
-sdk_version: 5.50.0
-python_version: "3.12"
-app_file: app_gradio.py
-pinned: false
----
-
 # Reconnaissance du genre à partir de noms ivoiriens
 
 Modèle CNN + BiLSTM + Multi-Head Attention, exporté en ONNX, servi avec Gradio.
