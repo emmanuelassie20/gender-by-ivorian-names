@@ -617,6 +617,7 @@ dependencies = [
     { name = "numpy" },
     { name = "onnxruntime" },
     { name = "pandas" },
+    { name = "scikit-learn" },
 ]
 
 [package.dev-dependencies]
@@ -645,6 +646,7 @@ requires-dist = [
     { name = "numpy" },
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "pandas" },
+    { name = "scikit-learn", specifier = ">=1.9.1" },
 ]
 
 [package.metadata.requires-dev]

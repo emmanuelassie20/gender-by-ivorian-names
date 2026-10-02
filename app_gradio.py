@@ -1,127 +1,59 @@
 """
-app_gradio.py - Interface Gradio reconnaissance de genre - INP-HB STIC v4
+app_gradio.py - Interface Gradio reconnaissance de genre - INP-HB STIC
 
-Nouveautés v4 :
-  - Inférence via ONNX Runtime (plus léger, pas de dépendance TensorFlow)
-  - Compatible avec le modèle CNN + BiLSTM + MHA exporté par train_model.py
-  - Batch masking conservé pour l'interprétabilité mot / caractère
-  - Fallback automatique sur le modèle Keras si ONNX non disponible
+Le modèle servi est le paquet « production » du registre de modèles (registre.ipynb) :
+un dossier contenant modele.json et les fichiers du modèle, chargé par adaptateurs.py.
+Changer de modèle ne demande donc aucune modification de ce fichier.
+
+  - Interprétabilité par masquage (mot / caractère), commune à tous les modèles
+  - Mode « incertain » : sous le seuil de confiance, la prédiction est à vérifier
 """
 
-import re, pickle, unicodedata
-import numpy as np
 import os, datetime
 import pandas as pd
 import gradio as gr
+from adaptateurs import charger, clean_text, FICHE
 
 # ═══════════════════════════════
 # CHARGEMENT
 # ═══════════════════════════════
-ONNX_MODEL_PATH  = "best_gender_model.onnx"
-KERAS_MODEL_PATH = "best_gender_model.keras"
-CHAR_INDEX_PATH  = "char_to_index.pkl"
-MAX_LEN_PATH     = "max_len.pkl"
+PAQUET_DIR       = os.environ.get("PAQUET_DIR", "production")
 CORRECTIONS_FILE = "corrections_dataset.csv"
 
-# En ligne (Hugging Face Spaces), les fichiers du modèle ne sont pas dans le
-# dépôt : ils sont téléchargés depuis un dépôt modèle PRIVÉ (secrets
-# HF_MODEL_REPO et HF_TOKEN). En local, les fichiers présents sont utilisés.
+# En ligne, le paquet n'est pas dans le dépôt : il est téléchargé depuis le dossier
+# production/ du dépôt modèle PRIVÉ (variables HF_MODEL_REPO et HF_TOKEN).
 HF_MODEL_REPO = os.environ.get("HF_MODEL_REPO")
 
-print(">>> Chargement des ressources...")
+print(">>> Chargement du modèle de production...")
 
-if HF_MODEL_REPO:
-    from huggingface_hub import hf_hub_download
-    for _fname in (ONNX_MODEL_PATH, CHAR_INDEX_PATH, MAX_LEN_PATH):
-        if not os.path.exists(_fname):
-            hf_hub_download(HF_MODEL_REPO, _fname, local_dir=".",
-                            token=os.environ.get("HF_TOKEN"))
-            print(f">>> Téléchargé depuis {HF_MODEL_REPO} : {_fname}")
+if HF_MODEL_REPO and not os.path.exists(os.path.join(PAQUET_DIR, FICHE)):
+    from huggingface_hub import snapshot_download
+    snapshot_download(HF_MODEL_REPO, allow_patterns=["production/*"], local_dir=".",
+                      token=os.environ.get("HF_TOKEN"))
+    PAQUET_DIR = "production"
+    print(f">>> Paquet téléchargé depuis {HF_MODEL_REPO}/production")
 
-# Chargement vocabulaire et longueur max
 try:
-    with open(CHAR_INDEX_PATH, "rb") as f:
-        char_to_index = pickle.load(f)
-    with open(MAX_LEN_PATH, "rb") as f:
-        max_len = pickle.load(f)
-    print(f">>> Vocab ({len(char_to_index)} chars) | max_len={max_len}")
+    modele = charger(PAQUET_DIR)
 except FileNotFoundError as e:
-    print(f">>> ERREUR : {e}\nLancez d'abord train_model.py.")
+    print(f">>> ERREUR : {e}\nPromouvez d'abord un modèle avec registre.ipynb.")
     raise SystemExit(1)
 
-# ── Chargement du modèle : ONNX en priorité, Keras en fallback ──
-USE_ONNX = False
-_keras_model = None
-_ort_session = None
-
-try:
-    import onnxruntime as ort
-    _ort_session = ort.InferenceSession(
-        ONNX_MODEL_PATH,
-        providers=['CPUExecutionProvider']
-    )
-    _ort_input_name = _ort_session.get_inputs()[0].name
-    USE_ONNX = True
-    print(f">>> ONNX Runtime chargé  ✓  ({ONNX_MODEL_PATH})")
-
-except (ImportError, FileNotFoundError) as e:
-    print(f">>> ONNX non disponible ({e}) - fallback Keras...")
-    try:
-        import tensorflow as tf
-        _keras_model = tf.keras.models.load_model(KERAS_MODEL_PATH)
-        print(f">>> Modèle Keras chargé  ✓  ({KERAS_MODEL_PATH})")
-    except FileNotFoundError as e2:
-        print(f">>> ERREUR : {e2}\nLancez d'abord train_model.py.")
-        raise SystemExit(1)
+SEUIL_INCERTAIN = float(os.environ.get("SEUIL_INCERTAIN",
+                                       modele.fiche.get("seuil_incertain", 0.70)))
+version = modele.fiche.get("version_registre")
+ENGINE = modele.nom + (f" (version {version} du registre)" if version else "")
+print(f">>> Modèle chargé  ✓  {ENGINE} | seuil de confiance {SEUIL_INCERTAIN:.0%}")
 
 
-# ═══════════════════════════════
-# UTILITAIRES
-# ═══════════════════════════════
-def clean_text(text: str) -> str:
-    """Normalise un nom propre : minuscules, ASCII, espaces."""
-    if not isinstance(text, str):
-        return ""
-    text = text.lower()
-    text = unicodedata.normalize('NFKD', text).encode('ASCII', 'ignore').decode('ASCII')
-    text = re.sub(r"['\-]", " ", text)
-    text = re.sub(r"[^a-z\s]", "", text)
-    return re.sub(r"\s+", " ", text).strip()
-
-
-def text_to_sequence(text: str) -> list:
-    return [char_to_index.get(c, char_to_index['<UNK>']) for c in text]
-
-
-def _pad(seqs: list) -> np.ndarray:
-    """
-    Pad une liste de séquences → array int32 (requis par ONNX).
-    Équivalent NumPy de pad_sequences(padding='post', truncating='pre'),
-    pour ne pas dépendre de TensorFlow en production.
-    """
-    X = np.zeros((len(seqs), max_len), dtype=np.int32)
-    for i, seq in enumerate(seqs):
-        seq = seq[-max_len:]
-        X[i, :len(seq)] = seq
-    return X
-
-
-def _predict_batch(X: np.ndarray) -> np.ndarray:
-    """
-    Inférence batch unifiée : ONNX ou Keras selon disponibilité.
-    Retourne un array 1D de probabilités P(Masculin).
-    """
-    if USE_ONNX:
-        return _ort_session.run(None, {_ort_input_name: X})[0].flatten()
-    else:
-        return _keras_model.predict(X, verbose=0).flatten()
+def predict_texts(texts: list):
+    """P(Masculin) pour une liste de textes nettoyés (inférence batch)."""
+    return modele.predict_proba(texts)
 
 
 def predict_proba(text: str) -> float:
     """Retourne P(Masculin) pour un texte nettoyé."""
-    seq = text_to_sequence(text)
-    X   = _pad([seq])
-    return float(_predict_batch(X)[0])
+    return float(predict_texts([text])[0])
 
 
 # ═══════════════════════════════
@@ -143,9 +75,7 @@ def word_importance(cleaned: str, original_prob: float) -> list:
         remaining = [w for j, w in enumerate(words) if j != i]
         masked_texts.append(' '.join(remaining) if remaining else '')
 
-    seqs  = [text_to_sequence(t) for t in masked_texts]
-    X     = _pad(seqs)
-    probs = _predict_batch(X)
+    probs = predict_texts(masked_texts)
 
     return [(w, float(abs(original_prob - probs[i])))
             for i, w in enumerate(words)]
@@ -159,19 +89,12 @@ def char_importance(cleaned: str, original_prob: float) -> list:
     Importance de chaque CARACTÈRE par masquage batch.
     Retourne : [(char, score), ...]
     """
-    chars = list(cleaned[:max_len])
+    chars = list(cleaned[:modele.nb_caracteres(cleaned)])
     if not chars:
         return []
 
-    base_seq = text_to_sequence(cleaned)
-    masked_seqs = []
-    for i in range(len(chars)):
-        masked = base_seq.copy()
-        masked[i] = 0   # masque le caractère par le token PAD
-        masked_seqs.append(masked)
-
-    X     = _pad(masked_seqs)
-    probs = _predict_batch(X)
+    # masquage propre à chaque modèle (caractère retiré, ou jeton PAD pour le v4)
+    probs = modele.proba_caracteres_masques(cleaned)
 
     return [(c, float(abs(original_prob - probs[i])))
             for i, c in enumerate(chars)]
@@ -243,7 +166,7 @@ def render_char_html(char_scores: list) -> str:
 def predict_single_input(full_name_input: str):
     """
     Pipeline complet :
-    saisie → nettoyage → prédiction ONNX (ou Keras) → importance → HTML
+    saisie → nettoyage → prédiction → importance → HTML
 
     Accepte NOM PRÉNOMS ou PRÉNOMS NOM indifféremment.
     """
@@ -260,6 +183,10 @@ def predict_single_input(full_name_input: str):
     confidence = prob_m if prob_m > 0.5 else 1 - prob_m
     conf_str   = f"{confidence:.2%}"
 
+    # ── Mode « incertain » : sous le seuil, la prédiction est à vérifier ──
+    affichage = (f"Incertain, à vérifier (plutôt {genre_pred})"
+                 if confidence < SEUIL_INCERTAIN else genre_pred)
+
     # ── Importance par mot ───────────────────────────────────────
     w_scores = word_importance(cleaned, prob_m)
 
@@ -271,16 +198,15 @@ def predict_single_input(full_name_input: str):
     html_char = render_char_html(c_scores)
 
     top_mot = max(w_scores, key=lambda x: x[1])[0] if w_scores else "-"
-    engine  = "ONNX ⚡" if USE_ONNX else "Keras 🔁"
     cleaned_info = (
         f" **Nom traité :** `{cleaned}`  \n"
         f" **Mot le + influent :** `{top_mot}`  \n"
-        f" **Moteur d'inférence :** {engine}"
+        f" **Modèle :** {ENGINE} | seuil de confiance : {SEUIL_INCERTAIN:.0%}"
     )
 
     html_full = html_word + "<hr style='margin:10px 0; opacity:0.3'/>" + html_char
 
-    return genre_pred, conf_str, cleaned_info, html_full, None
+    return affichage, conf_str, cleaned_info, html_full, None
 
 
 # ═══════════════════════════════
@@ -309,7 +235,7 @@ def save_correction(nom_complet, prediction_modele,
 # ═══════════════════════════════
 # INTERFACE GRADIO
 # ═══════════════════════════════
-engine_label = "ONNX ⚡" if USE_ONNX else "Keras 🔁"
+engine_label = ENGINE
 
 with gr.Blocks(theme=gr.themes.Soft(),
                title="Reconnaissance Genre") as demo:

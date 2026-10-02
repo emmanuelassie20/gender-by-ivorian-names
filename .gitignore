@@ -16,3 +16,6 @@ mlflow.db
 mlruns/
 mlartifacts/
 split_reference.csv
+*.joblib
+paquets/
+production/
