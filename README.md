@@ -1,7 +1,7 @@
 # Reconnaissance du genre à partir de noms ivoiriens
 
 Prédiction du genre (Masculin / Féminin) à partir d'un nom complet ivoirien, dans un ordre
-NOM / PRÉNOMS quelconque, avec interprétabilité par mot et par caractère.
+NOM / PRÉNOMS quelconque, avec interprétabilité par mot.
 
 Modèle en production : **régression logistique** sur n-grammes de caractères (1 à 6) et mots
 entiers, retenue par l'évaluation finale sur le jeu de test (accuracy 0,9557, IC 95 %

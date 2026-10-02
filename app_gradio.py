@@ -5,7 +5,7 @@ Le modèle servi est le paquet « production » du registre de modèles (registr
 un dossier contenant modele.json et les fichiers du modèle, chargé par adaptateurs.py.
 Changer de modèle ne demande donc aucune modification de ce fichier.
 
-  - Interprétabilité par masquage (mot / caractère), commune à tous les modèles
+  - Interprétabilité par masquage des mots, commune à tous les modèles
   - Mode « incertain » : sous le seuil de confiance, la prédiction est à vérifier
 """
 
@@ -43,7 +43,7 @@ SEUIL_INCERTAIN = float(os.environ.get("SEUIL_INCERTAIN",
                                        modele.fiche.get("seuil_incertain", 0.70)))
 version = modele.fiche.get("version_registre")
 ENGINE = modele.nom + (f" (version {version} du registre)" if version else "")
-print(f">>> Modèle chargé  ✓  {ENGINE} | seuil de confiance {SEUIL_INCERTAIN:.0%}")
+print(f">>> Modèle chargé : {ENGINE} | seuil de confiance {SEUIL_INCERTAIN:.0%}")
 
 
 def predict_texts(texts: list):
@@ -82,25 +82,6 @@ def word_importance(cleaned: str, original_prob: float) -> list:
 
 
 # ═══════════════════════════════
-# INTERPRÉTABILITÉ PAR CARACTÈRE
-# ═══════════════════════════════
-def char_importance(cleaned: str, original_prob: float) -> list:
-    """
-    Importance de chaque CARACTÈRE par masquage batch.
-    Retourne : [(char, score), ...]
-    """
-    chars = list(cleaned[:modele.nb_caracteres(cleaned)])
-    if not chars:
-        return []
-
-    # masquage propre à chaque modèle (caractère retiré, ou jeton PAD pour le v4)
-    probs = modele.proba_caracteres_masques(cleaned)
-
-    return [(c, float(abs(original_prob - probs[i])))
-            for i, c in enumerate(chars)]
-
-
-# ═══════════════════════════════
 # RENDU HTML
 # ═══════════════════════════════
 def render_word_html(word_scores: list, genre: str) -> str:
@@ -129,32 +110,6 @@ def render_word_html(word_scores: list, genre: str) -> str:
             f"color:{'white' if alpha > 0.5 else '#222'}; "
             f"font-weight:{'bold' if alpha > 0.5 else 'normal'};'>"
             f"{word}</span> "
-        )
-    html += "</div></div>"
-    return html
-
-
-def render_char_html(char_scores: list) -> str:
-    """Caractères colorés selon leur impact (détail fin)."""
-    if not char_scores:
-        return ""
-
-    max_imp = max(s for _, s in char_scores) or 1.0
-    html = (
-        "<div style='margin-top:12px; font-family:monospace;'>"
-        "<p style='color:#555; margin-bottom:6px;'>"
-        "<strong>Détail : importance par caractère</strong></p>"
-        "<div style='font-size:16px; line-height:2.4; word-wrap:break-word;'>"
-    )
-    for char, score in char_scores:
-        alpha = 0.10 + 0.85 * (score / max_imp)
-        bg    = f"rgba(120,80,200,{alpha:.2f})"
-        html += (
-            f"<span title='{score:.4f}' "
-            f"style='background:{bg}; padding:3px 5px; margin:1px; "
-            f"border-radius:3px; "
-            f"color:{'white' if alpha > 0.45 else '#222'};'>"
-            f"{'&nbsp;' if char == ' ' else char}</span>"
         )
     html += "</div></div>"
     return html
@@ -190,12 +145,8 @@ def predict_single_input(full_name_input: str):
     # ── Importance par mot ───────────────────────────────────────
     w_scores = word_importance(cleaned, prob_m)
 
-    # ── Importance par caractère ─────────────────────────────────
-    c_scores = char_importance(cleaned, prob_m)
-
     # ── Rendu HTML ───────────────────────────────────────────────
     html_word = render_word_html(w_scores, genre_pred)
-    html_char = render_char_html(c_scores)
 
     top_mot = max(w_scores, key=lambda x: x[1])[0] if w_scores else "-"
     cleaned_info = (
@@ -204,7 +155,7 @@ def predict_single_input(full_name_input: str):
         f" **Modèle :** {ENGINE}"
     )
 
-    html_full = html_word + "<hr style='margin:10px 0; opacity:0.3'/>" + html_char
+    html_full = html_word
 
     return affichage, conf_str, cleaned_info, html_full, None
 
@@ -215,7 +166,7 @@ def predict_single_input(full_name_input: str):
 def save_correction(nom_complet, prediction_modele,
                     correction_utilisateur, confiance):
     if not correction_utilisateur:
-        return "⚠ Sélectionnez le genre correct avant d'enregistrer."
+        return "Sélectionnez le genre correct avant d'enregistrer."
     row = {
         'nom_complet':       nom_complet,
         'genre_reel':        correction_utilisateur,
@@ -227,7 +178,7 @@ def save_correction(nom_complet, prediction_modele,
     header = not os.path.exists(CORRECTIONS_FILE)
     df_new.to_csv(CORRECTIONS_FILE, mode='a', header=header, index=False)
     return (
-        f"✅ Correction enregistrée - "
+        f"Correction enregistrée : "
         f"'{nom_complet}' marqué comme '{correction_utilisateur}'."
     )
 
@@ -238,7 +189,7 @@ def save_correction(nom_complet, prediction_modele,
 with gr.Blocks(theme=gr.themes.Soft(),
                title="Reconnaissance Genre") as demo:
 
-    gr.Markdown("# 🇨🇮 Reconnaissance de Genre - Noms Locaux Ivoiriens")
+    gr.Markdown("# Reconnaissance de Genre - Noms Locaux Ivoiriens")
     gr.Markdown("Saisissez le **nom complet**")
 
     with gr.Row():
@@ -248,17 +199,17 @@ with gr.Blocks(theme=gr.themes.Soft(),
                 placeholder="Ex : ASSIE EMMANUEL  ou  EMMANUEL ASSIE",
                 lines=1
             )
-            btn_predict = gr.Button("🔍 Prédire", variant="primary")
+            btn_predict = gr.Button("Prédire", variant="primary")
 
         with gr.Column(scale=1):
             out_genre   = gr.Textbox(label="Genre Prédit")
             out_conf    = gr.Textbox(label="Confiance")
             out_cleaned = gr.Markdown(label="Nom traité / mot clé")
 
-    gr.Markdown("### 📊 Analyse d'importance")
+    gr.Markdown("### Analyse d'importance")
     out_html = gr.HTML(label="Interprétabilité")
 
-    with gr.Accordion("🔧 Corriger une mauvaise prédiction", open=False):
+    with gr.Accordion("Corriger une mauvaise prédiction", open=False):
         gr.Markdown(
             "Si le genre prédit est incorrect, sélectionnez le genre réel "
             "puis enregistrez. Ces données serviront au fine-tuning futur."
@@ -268,7 +219,7 @@ with gr.Blocks(theme=gr.themes.Soft(),
                 choices=["Masculin", "Féminin"],
                 label="Genre Réel", value=None
             )
-            btn_save = gr.Button("💾 Enregistrer", variant="secondary")
+            btn_save = gr.Button("Enregistrer", variant="secondary")
         out_status = gr.Textbox(label="Statut", interactive=False)
 
     # ── Liaisons ────────────────────────────────────────────────
