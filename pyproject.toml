@@ -30,6 +30,8 @@ train = [
     "ipykernel",
     "mlflow>=3.16.1",
     "papermill>=2.7.0",
+    "lightgbm>=4.7.0",
+    "xgboost>=3.4.1",
 ]
 
 [tool.uv]
