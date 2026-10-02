@@ -244,7 +244,7 @@ with gr.Blocks(theme=gr.themes.Soft(),
         with gr.Column(scale=1):
             input_name = gr.Textbox(
                 label="Nom complet",
-                placeholder="Ex : MARIE KOUASSI  ou  KOUASSI MARIE",
+                placeholder="Ex : ASSIE EMMANUEL  ou  EMMANUEL ASSIE",
                 lines=1
             )
             btn_predict = gr.Button("🔍 Prédire", variant="primary")
