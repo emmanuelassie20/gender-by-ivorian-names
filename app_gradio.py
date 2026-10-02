@@ -299,4 +299,6 @@ if __name__ == "__main__":
     if os.environ.get("PORT"):
         launch_kwargs = dict(server_name="0.0.0.0",
                              server_port=int(os.environ["PORT"]))
+    # File d'attente : au plus 2 requêtes traitées en même temps (mémoire limitée en ligne)
+    demo.queue(default_concurrency_limit=2, max_size=32)
     demo.launch(share=False, auth=auth, **launch_kwargs)

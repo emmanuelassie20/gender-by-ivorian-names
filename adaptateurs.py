@@ -74,7 +74,9 @@ class _AdaptateurOnnx(Adaptateur):
     def __init__(self, dossier, fiche):
         super().__init__(dossier, fiche)
         import onnxruntime as ort
-        self.session = ort.InferenceSession(self.chemin('onnx'),
+        options = ort.SessionOptions()
+        options.enable_cpu_mem_arena = False   # pas de réserve mémoire qui ne fait que grossir
+        self.session = ort.InferenceSession(self.chemin('onnx'), sess_options=options,
                                             providers=['CPUExecutionProvider'])
         with open(self.chemin('vocab'), encoding='utf-8') as f:
             self._init_vocab(json.load(f))
