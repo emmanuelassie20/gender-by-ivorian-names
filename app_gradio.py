@@ -189,7 +189,13 @@ def save_correction(nom_complet, prediction_modele,
 with gr.Blocks(theme=gr.themes.Soft(),
                title="Reconnaissance Genre") as demo:
 
-    gr.Markdown("# Reconnaissance de Genre - Noms Locaux Ivoiriens")
+    with gr.Row(equal_height=True):
+        with gr.Column(scale=5):
+            gr.Markdown("# Reconnaissance de Genre - Noms Locaux Ivoiriens")
+        # Déconnexion : route /logout de Gradio, utile seulement si l'accès est protégé
+        if os.environ.get("APP_PASSWORD"):
+            with gr.Column(scale=1, min_width=140):
+                gr.Button("Déconnexion", link="/logout", variant="secondary", size="sm")
     gr.Markdown("Saisissez le **nom complet**")
 
     with gr.Row():
