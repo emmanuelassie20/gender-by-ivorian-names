@@ -200,7 +200,8 @@ def predict_single_input(full_name_input: str):
     top_mot = max(w_scores, key=lambda x: x[1])[0] if w_scores else "-"
     cleaned_info = (
         f" **Nom traité :** `{cleaned}`  \n"
-        f" **Mot le + influent :** `{top_mot}`"
+        f" **Mot le + influent :** `{top_mot}`  \n"
+        f" **Modèle :** {ENGINE}"
     )
 
     html_full = html_word + "<hr style='margin:10px 0; opacity:0.3'/>" + html_char
@@ -238,7 +239,7 @@ with gr.Blocks(theme=gr.themes.Soft(),
                title="Reconnaissance Genre") as demo:
 
     gr.Markdown("# 🇨🇮 Reconnaissance de Genre - Noms Locaux Ivoiriens")
-    gr.Markdown("Saisissez le **nom complet** (NOM PRÉNOMS ou PRÉNOMS NOM)")
+    gr.Markdown("Saisissez le **nom complet**")
 
     with gr.Row():
         with gr.Column(scale=1):
