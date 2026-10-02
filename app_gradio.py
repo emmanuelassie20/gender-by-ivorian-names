@@ -200,8 +200,7 @@ def predict_single_input(full_name_input: str):
     top_mot = max(w_scores, key=lambda x: x[1])[0] if w_scores else "-"
     cleaned_info = (
         f" **Nom traité :** `{cleaned}`  \n"
-        f" **Mot le + influent :** `{top_mot}`  \n"
-        f" **Modèle :** {ENGINE} | seuil de confiance : {SEUIL_INCERTAIN:.0%}"
+        f" **Mot le + influent :** `{top_mot}`"
     )
 
     html_full = html_word + "<hr style='margin:10px 0; opacity:0.3'/>" + html_char
@@ -235,16 +234,11 @@ def save_correction(nom_complet, prediction_modele,
 # ═══════════════════════════════
 # INTERFACE GRADIO
 # ═══════════════════════════════
-engine_label = ENGINE
-
 with gr.Blocks(theme=gr.themes.Soft(),
                title="Reconnaissance Genre") as demo:
 
     gr.Markdown("# 🇨🇮 Reconnaissance de Genre - Noms Locaux Ivoiriens")
-    gr.Markdown(
-        f"Saisissez le **nom complet** (NOM PRÉNOMS ou PRÉNOMS NOM) - "
-        f"moteur : **{engine_label}**"
-    )
+    gr.Markdown("Saisissez le **nom complet** (NOM PRÉNOMS ou PRÉNOMS NOM)")
 
     with gr.Row():
         with gr.Column(scale=1):
